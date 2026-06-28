@@ -6,6 +6,14 @@ Always use lib/api.ts for frontend fetch calls.
 Use httpx not requests in Python.
 Check if a file already exists before creating it.
 
+CodeGraph integration:
+- CodeGraph is running via codegraph watch in the background
+- Before editing any existing file, query codegraph to understand:
+  - what functions exist in that file
+  - what other files import it
+  - what it calls/depends on
+- Use codegraph_explore or codegraph_query tools before touching existing code
+
 Frontend package management:
 - Always use pnpm for any frontend install commands.
 - Never use npm install or yarn add in the frontend/ directory.
