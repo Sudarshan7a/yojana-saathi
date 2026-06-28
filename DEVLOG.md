@@ -62,3 +62,20 @@ Create Clerk JWT verification middleware for backend:
 1. Create backend/middleware/auth.py with Clerk JWT verification using clerk-backend-api
 2. Create dependency function get_current_user() for protected routes
 3. Test auth middleware with a protected endpoint
+
+---
+
+## Session 3 - 2026-06-29 - Codex
+### Completed
+- All backend routers done: schemes, profile, notifications, and admin
+- Schemes router exposes public list, detail, categories, and states endpoints
+- Profile router exposes authenticated get, update, tracker, and delete endpoints
+- Notifications router exposes authenticated list, read, read-all, and unread-count endpoints
+- Admin router exposes token-protected manual sync trigger endpoint
+
+### In Progress
+- Nothing half-done - clean stopping point
+
+### Next Session Starts With
+Agent files:
+1. Start with `agent/profile_extractor.py`
