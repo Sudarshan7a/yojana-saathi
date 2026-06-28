@@ -79,3 +79,25 @@ Create Clerk JWT verification middleware for backend:
 ### Next Session Starts With
 Agent files:
 1. Start with `agent/profile_extractor.py`
+
+---
+
+## Session 4 - 2026-06-29 - Codex
+### Completed
+- Added RAG prompt templates for profile extraction, question generation, and result generation
+- Added ChromaDB retriever with Google embeddings and semantic scheme search
+- Added agent package with profile extractor, sufficiency checker, question generator, update suggester, and conversation manager
+- Added chat router and wired the full conversation pipeline into FastAPI
+- Added HuggingFace ingestion script for scheme metadata + vector storage
+- Restarted backend and verified `/docs` loads with no import errors
+
+### In Progress
+- Nothing half-done - clean stopping point
+
+### Bugs / Notes
+- Importing `scripts/ingest_schemes.py` triggers a shutdown-time warning from `datasets` / `multiprocess.resource_tracker`, but the script still imports successfully
+- Uvicorn startup was clean after wiring the AI brain files
+
+### Next Session Starts With
+1. Run `python scripts/ingest_schemes.py`
+2. Then test the full conversation flow through `/docs`
