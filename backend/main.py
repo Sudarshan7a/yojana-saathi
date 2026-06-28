@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from config import settings
 from database import engine, get_db
 import models
-from routers import schemes, profile, notifications
+from routers import schemes, profile, notifications, admin
 
 # Create FastAPI app
 app = FastAPI(
@@ -43,4 +43,4 @@ def health_check(db: Session = Depends(get_db)):
 app.include_router(profile.router, prefix="/api", tags=["profile"])
 app.include_router(schemes.router, prefix="/api", tags=["schemes"])
 app.include_router(notifications.router, prefix="/api", tags=["notifications"])
-# app.include_router(admin.router, prefix="/api", tags=["admin"])
+app.include_router(admin.router, prefix="/api", tags=["admin"])
