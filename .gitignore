@@ -2,5 +2,38 @@
 .DS_Store
 Thumbs.db
 
+# AI tools — keep locally but don't commit
+# repomix-output.xml
+
+# codegraph index (local only, don't commit)
+.codegraph/
+
+backend/.env
+backend/metadata.db
+.agents/skills/# Environment files
+.env
+.env.local
+*.env
+
+# Database
+metadata.db
+*.db
+
+# Vector DB
+chroma_db/
+
+# Windsurf internal files
+.agents/
+skills-lock.json
+codegraph.md
+
 # AI tools
 repomix-output.xml
+
+# CodeGraph
+.codegraph/
+
+# OS
+.DS_Store
+Thumbs.db
+
