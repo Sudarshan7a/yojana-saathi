@@ -1,0 +1,25 @@
+Before writing any code, read CLAUDE.md completely.
+Then check repomix-output.xml for current file state.
+Follow every rule in CLAUDE.md.
+Never return sensitive profile fields in API responses.
+Always use lib/api.ts for frontend fetch calls.
+Use httpx not requests in Python.
+Check if a file already exists before creating it.
+
+Frontend package management:
+- Always use pnpm for any frontend install commands.
+- Never use npm install or yarn add in the frontend/ directory.
+
+Git workflow rules:
+- Always create a feature branch before starting any new feature or file
+  Branch naming: feat/feature-name, fix/bug-name, chore/task-name
+- Commit after every completed file or logical unit of work
+- Commit message format: type(scope): description
+  Examples:
+  feat(backend): add user profile SQLAlchemy model
+  feat(agent): add profile extractor with Gemini
+  fix(auth): handle expired Clerk JWT correctly
+  chore(config): add ruff.toml and biome.json
+- Never commit broken code — only commit when the file works
+- Never commit .env files, chroma_db/, or metadata.db
+- After finishing a feature branch, remind user to merge to main
