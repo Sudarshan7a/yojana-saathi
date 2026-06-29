@@ -90,14 +90,17 @@ Agent files:
 - Added chat router and wired the full conversation pipeline into FastAPI
 - Added HuggingFace ingestion script for scheme metadata + vector storage
 - Restarted backend and verified `/docs` loads with no import errors
+- Replaced deprecated `langchain-community` embeddings with `langchain-huggingface`
+- Switched RAG pipeline to local `sentence-transformers` embeddings
+- Rebuilt and validated ChromaDB with 3397 embedded schemes and searchable semantic batches
 
 ### In Progress
 - Nothing half-done - clean stopping point
 
 ### Bugs / Notes
-- Importing `scripts/ingest_schemes.py` triggers a shutdown-time warning from `datasets` / `multiprocess.resource_tracker`, but the script still imports successfully
+- `multiprocess.resource_tracker` still emits a shutdown-time warning after ingestion, but the full 68-batch embed completes successfully
 - Uvicorn startup was clean after wiring the AI brain files
 
 ### Next Session Starts With
-1. Run `python scripts/ingest_schemes.py`
-2. Then test the full conversation flow through `/docs`
+1. Merge backend changes to `main`
+2. Start frontend chat UI and connect it to the live backend
