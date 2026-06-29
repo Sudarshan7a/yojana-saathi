@@ -1,0 +1,25 @@
+{
+  "output": {
+    "filePath": "repomix-output.xml",
+    "style": "xml",
+    "showLineNumbers": true,
+    "copyToClipboard": false
+  },
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "docs/**",
+      "chroma_db/**",
+      "metadata.db",
+      "*.pyc",
+      "__pycache__/**",
+      "node_modules/**",
+      ".next/**",
+      "venv/**",
+      "repomix-output.xml",
+      "*.egg-info/**",
+      "backend/scripts/data/**"
+    ]
+  }
+}
