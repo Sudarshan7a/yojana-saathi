@@ -1,10 +1,15 @@
-from datetime import datetime
+import os
 import re
+import sys
+from csv import DictReader
+from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import chromadb
-from datasets import load_dataset
 from langchain_core.documents import Document
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 from database import SessionLocal
 from config import settings
@@ -82,9 +87,78 @@ def _normalize_scheme(raw: dict) -> dict:
     }
 
 
-def load_huggingface_schemes() -> list[dict]:
-    dataset = load_dataset("shrijayan/gov_myscheme", split="train")
-    return [_normalize_scheme(record) for record in dataset]
+def load_local_csv_schemes() -> list[dict]:
+    csv_path = Path(__file__).resolve().parent / "data" / "schemes.csv"
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Scheme CSV not found: {csv_path}")
+
+    def parse_state(level: str) -> str | None:
+        cleaned = _clean_text(level)
+        if not cleaned:
+            return None
+        if "central" in cleaned.lower():
+            return "Central"
+
+        parts = [part.strip() for part in cleaned.split(",") if part.strip()]
+        if not parts:
+            return None
+
+        last_part = parts[-1]
+        if last_part.lower() == "state" and len(parts) > 1:
+            return parts[0]
+        return last_part
+
+    schemes: list[dict] = []
+    seen_slugs: set[str] = set()
+    skipped_missing = 0
+    skipped_duplicates = 0
+
+    with csv_path.open("r", encoding="utf-8-sig", newline="") as csv_file:
+        reader = DictReader(csv_file)
+        for row in reader:
+            slug = _clean_text(row.get("slug"))
+            name = _clean_text(row.get("scheme_name"))
+            if not slug or not name:
+                skipped_missing += 1
+                continue
+            if slug in seen_slugs:
+                skipped_duplicates += 1
+                continue
+            seen_slugs.add(slug)
+
+            raw_category = _clean_text(row.get("schemeCategory"))
+            categories = [part.strip() for part in raw_category.split(",") if part.strip()]
+            raw_tags = _clean_text(row.get("tags"))
+            tags = [part.strip() for part in raw_tags.split(",") if part.strip()]
+
+            schemes.append(
+                {
+                    "id": slug,
+                    "name": name,
+                    "eligibility": _clean_text(row.get("eligibility"))
+                    or "Eligibility details not available",
+                    "benefits": _clean_text(row.get("benefits"))
+                    or "Benefits details not available",
+                    "description": _clean_text(row.get("details")) or None,
+                    "application_process": _clean_text(row.get("application")) or None,
+                    "required_documents": _clean_text(row.get("documents")) or None,
+                    "ministry": None,
+                    "application_url": None,
+                    "category": categories[0] if categories else "Uncategorized",
+                    "state": parse_state(row.get("level", "")),
+                    "status": "active",
+                    "tags": tags,
+                    "source_url": f"https://www.myscheme.gov.in/schemes/{slug}",
+                    "last_synced_at": datetime.utcnow(),
+                }
+            )
+
+    print(
+        f"Loaded {len(schemes)} schemes from {csv_path}. "
+        f"Skipped {skipped_missing} rows with missing slug/name and "
+        f"{skipped_duplicates} duplicate slugs."
+    )
+    return schemes
 
 
 def tag_scheme(scheme: dict) -> list[str]:
@@ -143,10 +217,14 @@ def scheme_to_document(scheme: dict) -> Document:
 
 
 def ingest_all(schemes: list[dict]) -> None:
+    from database import engine
+    import models
+
+    models.Base.metadata.create_all(bind=engine)
     db = SessionLocal()
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model=settings.embedding_model,
-        google_api_key=settings.google_api_key,
+    embeddings = HuggingFaceEmbeddings(
+        model_name=settings.embedding_model,
+        encode_kwargs={"normalize_embeddings": True},
     )
     client = chromadb.PersistentClient(path=settings.chroma_persist_directory)
     collection = client.get_or_create_collection(name=settings.chroma_collection_name)
@@ -155,18 +233,19 @@ def ingest_all(schemes: list[dict]) -> None:
         existing_ids = {scheme_id for (scheme_id,) in db.query(Scheme.id).all()}
         new_schemes = [scheme for scheme in schemes if scheme["id"] not in existing_ids]
 
-        if not new_schemes:
-            print("No new schemes to ingest.")
-            return
-
         for scheme in new_schemes:
             db.add(Scheme(**scheme))
-        db.commit()
-        print(f"Saved {len(new_schemes)} new schemes to SQLite.")
+        if new_schemes:
+            db.commit()
+            print(f"Saved {len(new_schemes)} new schemes to SQLite.")
+        else:
+            print("No new schemes to save in SQLite.")
 
-        documents = [scheme_to_document(scheme) for scheme in new_schemes]
+        documents = [scheme_to_document(scheme) for scheme in schemes]
+        total_batches = (len(documents) + BATCH_SIZE - 1) // BATCH_SIZE
         for start in range(0, len(documents), BATCH_SIZE):
             batch = documents[start : start + BATCH_SIZE]
+            batch_number = (start // BATCH_SIZE) + 1
             batch_texts = [doc.page_content for doc in batch]
             batch_ids = [doc.metadata["scheme_id"] for doc in batch]
             batch_metadatas = []
@@ -175,6 +254,7 @@ def ingest_all(schemes: list[dict]) -> None:
                 metadata["tags"] = ", ".join(metadata.get("tags", []))
                 batch_metadatas.append(metadata)
 
+            print(f"Embedding batch {batch_number}/{total_batches}...")
             batch_embeddings = embeddings.embed_documents(batch_texts)
             collection.add(
                 ids=batch_ids,
@@ -182,13 +262,11 @@ def ingest_all(schemes: list[dict]) -> None:
                 metadatas=batch_metadatas,
                 embeddings=batch_embeddings,
             )
-            print(
-                f"Ingested vector batch {start + 1}-{start + len(batch)} of {len(documents)}."
-            )
+            print(f"Ingested vector batch {start + 1}-{start + len(batch)} of {len(documents)}.")
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    schemes = load_huggingface_schemes()
+    schemes = load_local_csv_schemes()
     ingest_all(schemes)

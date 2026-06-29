@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import chromadb
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 from config import settings
 
@@ -15,9 +15,9 @@ class RetrievedDocument:
 
 class ChromaVectorStore:
     def __init__(self) -> None:
-        self.embeddings = GoogleGenerativeAIEmbeddings(
-            model=settings.embedding_model,
-            google_api_key=settings.google_api_key,
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name=settings.embedding_model,
+            encode_kwargs={"normalize_embeddings": True},
         )
         self.client = chromadb.PersistentClient(path=settings.chroma_persist_directory)
         self.collection = self.client.get_or_create_collection(

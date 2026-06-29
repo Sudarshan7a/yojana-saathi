@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     chroma_collection_name: str = "india_schemes"
 
     # RAG Settings
-    embedding_model: str = "models/embedding-001"
+    embedding_model: str = "all-MiniLM-L6-v2"
     llm_model: str = "gemini-1.5-flash"
     top_k: int = 15
     temperature: float = 0.4
