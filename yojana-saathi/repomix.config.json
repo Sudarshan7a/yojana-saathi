@@ -18,7 +18,8 @@
       ".next/**",
       "venv/**",
       "repomix-output.xml",
-      "*.egg-info/**"
+      "*.egg-info/**",
+      "backend/scripts/data/**"
     ]
   }
 }

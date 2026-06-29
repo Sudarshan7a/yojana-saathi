@@ -19,7 +19,7 @@ re-answer questions every session.
 ## Tech Stack
 
 ### Frontend
-- Framework: Next.js 14 (App Router, TypeScript)
+- Framework: Next.js 16 (App Router, TypeScript)
 - Styling: Tailwind CSS + shadcn/ui components
 - Auth: Clerk
 - AI streaming: Vercel AI SDK (useChat hook)
@@ -80,7 +80,7 @@ yojna-saathi/
 │   │   ├── api.ts                ← ALL fetch() calls live here only
 │   │   ├── types.ts              ← TypeScript interfaces
 │   │   └── profile-tracker.ts   ← localStorage helpers for tracker object
-│   ├── middleware.ts             ← Clerk: protects /chat /profile /notifications
+│   ├── proxy.ts                  ← Clerk: protects /chat /profile /notifications
 │   ├── .env.local
 │   └── package.json
 │
@@ -187,14 +187,22 @@ GET   /health                 ← {status, schemes_count, last_sync}
 4. **Scheme expiry** = soft delete in SQLite (status="inactive") + hard delete
    vectors from ChromaDB. Both must happen together.
 
-5. **All API calls** from frontend go through `frontend/lib/api.ts` only.
+5. **Chroma metadata** for every embedded scheme must include `scheme_id`, so
+   expiry jobs can safely delete vectors with `where={"scheme_id": scheme.id}`.
+
+6. **All API calls** from frontend go through `frontend/lib/api.ts` only.
    Never write fetch() directly in components.
 
-6. **Auth** on every backend endpoint uses `Depends(get_current_user)` which
+7. **Auth** on every backend endpoint uses `Depends(get_current_user)` which
    verifies Clerk JWT and returns user_id string.
 
-7. **No Aadhaar, PAN, bank details, or exact address** are ever stored.
+8. **No Aadhaar, PAN, bank details, or exact address** are ever stored.
    Enforce this in the Pydantic models.
+
+9. **Clerk route protection** in the frontend lives in `frontend/proxy.ts`.
+   `clerkMiddleware()` leaves routes public by default, so use
+   `createRouteMatcher()` and only call `auth.protect()` for the intended
+   protected routes.
 
 ---
 
@@ -229,6 +237,11 @@ NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/chat
 NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/chat
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
+
+Note: keep `NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in` explicitly set. There is a
+known Clerk + Next.js 16 `proxy.ts` issue in monorepo/workspace setups where
+`auth.protect()` can redirect back to the current page if the sign-in URL is
+not available in the proxy runtime environment.
 
 ---
 
@@ -293,14 +306,20 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - [ ] Create notifications/matcher.py (SQL-based bulk eligibility)
 - [ ] Test: add dummy scheme → verify notifications created
 - [ ] Create .github/workflows/sync_schemes.yml
+- [ ] Use current GitHub Actions majors in the workflow: `actions/checkout@v7`
+      and `actions/setup-python@v6` (fallback only if runner compatibility
+      forces it)
 
 ### Frontend — Setup
-- [ ] npx create-next-app@latest frontend (TypeScript, Tailwind, App Router)
-- [ ] Install Clerk: npm install @clerk/nextjs
-- [ ] Install shadcn/ui: npx shadcn-ui@latest init
-- [ ] Install Vercel AI SDK: npm install ai
+- [ ] pnpm create next-app@latest frontend (TypeScript, Tailwind, App Router)
+- [ ] Install Clerk: pnpm add @clerk/nextjs
+- [ ] Install shadcn/ui: pnpm dlx shadcn@latest init
+- [ ] During shadcn init, choose the Next.js template and the default Radix-based primitives
+- [ ] Install Vercel AI SDK: pnpm add ai
 - [ ] Set up frontend/.env.local
-- [ ] Create middleware.ts (Clerk route protection)
+- [ ] Create proxy.ts (Clerk route protection with createRouteMatcher)
+- [ ] In `proxy.ts`, explicitly use `createRouteMatcher(['/chat(.*)', '/profile(.*)', '/notifications(.*)'])`
+      and call `await auth.protect()` only for those routes
 - [ ] Test: /chat redirects to /sign-in when not logged in
 
 ### Frontend — Pages
@@ -337,7 +356,8 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - [ ] Deploy backend to Railway (with persistent volume for chroma_db/)
 - [ ] Set all env vars in Vercel + Railway dashboards
 - [ ] Test production URL end-to-end
-- [ ] Enable GitHub Actions sync workflow
+- [ ] Enable GitHub Actions sync workflow (prefer `actions/checkout@v6`
+      and `actions/setup-python@v6`)
 
 ---
 
@@ -377,6 +397,8 @@ Step 3: Open next IDE, attach repomix-output.xml, type:
 - DO NOT use `requests` library in Python — use `httpx` (async)
 - DO NOT put all backend code in main.py — use the routers/ structure
 - DO NOT skip the Clerk JWT check on any route that touches user data
+- DO NOT assume `clerkMiddleware()` protects routes by itself — it does not
+- DO NOT use `middleware.ts` for this Next.js 16 Clerk setup — use `proxy.ts`
 - DO NOT store Aadhaar, PAN, or bank details anywhere in the codebase
 - DO NOT embed the full scheme text — embed only eligibility + benefits sections
 - DO NOT use a per-user ChromaDB collection — all schemes share "india_schemes"
